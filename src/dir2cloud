@@ -1,0 +1,96 @@
+#!/bin/bash
+
+############################################################################
+########## INFO ############################################################
+############################################################################
+### ABOUT:
+####### dir2cloud is used to backup files and upload it to FTP or Dropbox
+### AUTOHR:
+####### Amin Babaeipanah
+### VERSION:
+####### 0.18
+### CHANGELOG:
+####### Added error check
+####### Initial release
+### USAGE:
+####### Make a Dropbox app and get a Dropbox access token from:
+#######     https://www.dropbox.com/developers/apps
+####### Change the variables below (variables to change)
+####### Upload this script to somwhere outside of public_html or www
+#######     For example: $HOME/backup
+#######     Or:          /home/hosting/backup
+####### Run "chmod +x dir2cloud" to make it executable
+####### Run it using "./dir2cloud"
+####### Cron job sample to backup everyday at 3am:
+#######     0 3 * * * /home/hosting/backup/dir2cloud
+### NOTES:
+####### You can use multiple copies of this script with diferent names to
+####### backup different paths (websites) at different times.
+####### You can use the same access token for all your backup jobs.
+
+############################################################################
+########## VARIABLES TO CHANGE #############################################
+############################################################################
+backupName="backup-name" #backup date will be added to this name
+#absolute path to folder(s) you want to backup
+#toBackup[0]="$HOME/public_html/work"
+#toBackup[1]="$HOME/public_html/trip"
+toBackup[0]="$HOME/public_html"
+#define exclusions
+#toExclude[0]="*.log" #exclude files with extension .log
+#toExclude[1]="*/.*" #exclude invisible files
+#toExclude[2]="*/cache/*" #exclude cache folder and everything inside it
+toExclude[0]="*.log"
+compressionLevel=5 #0 to 9, no compression to best compression
+#do you want to uplaod this backup to dropbox?
+uploadToDropbox=1
+dropboxAccessKey="dropbox_access_token"
+#do you want to upload this backup to another ftp?
+uploadToFtp=0
+ftpHost="ftp://domain.com/backup/"
+ftpUser="username"
+ftpPass="password"
+
+############################################################################
+########## dir2dropbox #####################################################
+############################################################################
+backupDir="$(dirname $(readlink -f $0))"
+if [ ! -d $backupDir ]; then mkdir -p $backupDir; fi
+now=$(date +"%Y%m%d-%H%M%S")
+backupFile=$backupName'_'$now.zip
+#get backup paths
+compress=''
+for i in ${!toBackup[@]}; do
+  compress+="${toBackup[$i]}"
+  compress+=" "
+done
+#get excludes
+exclude=''
+for i in ${!toExclude[@]}; do
+  exclude+="${toExclude[$i]}"
+  exclude+=" "
+done
+#exit if conf error
+if [ -z "$backupName" ] || [ -z "$compress" ] || [ -z "$compressionLevel" ] || [ -z "$dropboxAccessKey" ] ; then
+	echo -ne "\033[31m [x] Configuration error! Please check \"VARIABLES TO CHANGE\" section.\e[39m\n"
+	exit 1
+fi
+#check to see if any excludes are defined
+if [ -z "$exclude" ]; then
+	zip -r -q -$compressionLevel $backupDir/$backupFile $compress
+else
+	zip -r -q -$compressionLevel $backupDir/$backupFile $compress -x $exclude
+fi
+#upload to dropbox
+if [ $uploadToDropbox -eq 1 ]; then
+	curl -X POST https://content.dropboxapi.com/2/files/upload \
+		--header "Authorization: Bearer $dropboxAccessKey" \
+		--header "Dropbox-API-Arg: {\"path\": \"/$backupFile\"}" \
+		--header "Content-Type: application/octet-stream" \
+		--data-binary @$backupDir/$backupFile > /dev/null 2>&1
+fi
+#upload to ftp
+if [ $uploadToFtp -eq 1 ]; then
+	curl -T $backupDir/$backupFile $ftpHost --user $ftpUser:$ftpPass -s
+fi
+rm -rf $backupDir/$backupFile
