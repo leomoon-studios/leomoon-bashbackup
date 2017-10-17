@@ -66,9 +66,16 @@ ftpPass="password"
 backupDir="$(dirname $(readlink -f $0))"
 if [ ! -d $backupDir ]; then mkdir -p $backupDir; fi
 #exit if conf error
-if [ -z "${backupName[0]}" ] || [ -z "${dbHost[0]}" ] || [ -z "${dbName[0]}" ] || [ -z "${dbUser[0]}" ] || [ -z "${dbPass[0]}" ] || [ -z "$compressionLevel" ] || [ -z "$dropboxAccessKey" ] ; then
-	echo -ne "\033[31m [x] Configuration error! Please check \"VARIABLES TO CHANGE\" section.\e[39m\n"
-	exit 1
+if [ $uploadToDropbox -eq 1 ]; then
+	if [ -z "${backupName[0]}" ] || [ -z "${dbHost[0]}" ] || [ -z "${dbName[0]}" ] || [ -z "${dbUser[0]}" ] || [ -z "${dbPass[0]}" ] || [ -z "$compressionLevel" ] || [ -z "$dropboxAccessKey" ] ; then
+		echo -ne "\033[31m [x] Configuration error! Please check \"VARIABLES TO CHANGE\" section.\e[39m\n"
+		exit 1
+	fi
+else
+	if [ -z "${backupName[0]}" ] || [ -z "${dbHost[0]}" ] || [ -z "${dbName[0]}" ] || [ -z "${dbUser[0]}" ] || [ -z "${dbPass[0]}" ] || [ -z "$compressionLevel" ] || [ -z "$ftpHost" ] || [ -z "$ftpUser" ] || [ -z "$ftpPass" ] ; then
+		echo -ne "\033[31m [x] Configuration error! Please check \"VARIABLES TO CHANGE\" section.\e[39m\n"
+		exit 1
+	fi
 fi
 #backup database(s)
 for i in ${!dbHost[@]}; do
