@@ -71,9 +71,16 @@ for i in ${!toExclude[@]}; do
   exclude+=" "
 done
 #exit if conf error
-if [ -z "$backupName" ] || [ -z "$compress" ] || [ -z "$compressionLevel" ] || [ -z "$dropboxAccessKey" ] ; then
-	echo -ne "\033[31m [x] Configuration error! Please check \"VARIABLES TO CHANGE\" section.\e[39m\n"
-	exit 1
+if [ $uploadToDropbox -eq 1 ]; then
+	if [ -z "$backupName" ] || [ -z "$compress" ] || [ -z "$compressionLevel" ] || [ -z "$dropboxAccessKey" ] ; then
+		echo -ne "\033[31m [x] Configuration error! Please check \"VARIABLES TO CHANGE\" section.\e[39m\n"
+		exit 1
+	fi
+else
+	if [ -z "$backupName" ] || [ -z "$compress" ] || [ -z "$compressionLevel" ] || [ -z "$ftpHost" ] || [ -z "$ftpUser" ] || [ -z "$ftpPass" ] ; then
+		echo -ne "\033[31m [x] Configuration error! Please check \"VARIABLES TO CHANGE\" section.\e[39m\n"
+		exit 1
+	fi
 fi
 #check to see if any excludes are defined
 if [ -z "$exclude" ]; then
