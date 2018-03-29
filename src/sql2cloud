@@ -31,6 +31,7 @@
 ####### You can use multiple copies of this script with diferent names and
 ####### schedule them to backup one database at different times.
 ####### You can use the same access token for all your backup jobs.
+### ADD PSQL SUPPORT
 
 ############################################################################
 ########## VARIABLES TO CHANGE #############################################
