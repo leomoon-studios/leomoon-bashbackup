@@ -4,7 +4,7 @@
 ########## INFO ############################################################
 ############################################################################
 ### ABOUT:
-####### dir2cloud is used to backup files and upload it to FTP or Dropbox
+####### dirbackup is used to backup files and upload it to FTP or Dropbox
 ### AUTOHR:
 ####### Amin Babaeipanah
 ### VERSION:
@@ -19,10 +19,10 @@
 ####### Upload this script to somwhere outside of public_html or www
 #######     For example: $HOME/backup
 #######     Or:          /home/hosting/backup
-####### Run "chmod +x dir2cloud" to make it executable
-####### Run it using "./dir2cloud"
+####### Run "chmod +x dirbackup" to make it executable
+####### Run it using "./dirbackup"
 ####### Cron job sample to backup everyday at 3am:
-#######     0 3 * * * /home/hosting/backup/dir2cloud
+#######     0 3 * * * /home/hosting/backup/dirbackup
 ### NOTES:
 ####### You can use multiple copies of this script with diferent names to
 ####### backup different paths (websites) at different times.

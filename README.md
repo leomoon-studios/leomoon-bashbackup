@@ -1,3 +1,3 @@
-# LeoMoon Bash2Cloud
+# LeoMoon BashBackup
 ## More Info / Download
-https://leomoon.com/downloads/scripts/leomoon-bash2cloud/
+https://leomoon.com/downloads/scripts/leomoon-bashbackup/

@@ -4,7 +4,7 @@
 ########## INFO ############################################################
 ############################################################################
 ### ABOUT:
-####### sql2cloud is used to backup a mySQL database and upload it to FTP
+####### sqlbackup is used to backup a mySQL database and upload it to FTP
 ####### or Dropbox
 ### AUTOHR:
 ####### Amin Babaeipanah
@@ -21,10 +21,10 @@
 ####### Upload this script to somwhere outside of public_html or www
 #######     For example: $HOME/backup
 #######     Or:          /home/hosting/backup
-####### Run "chmod +x sql2cloud" to make it executable
-####### Run it using "./sql2cloud"
+####### Run "chmod +x sqlbackup" to make it executable
+####### Run it using "./sqlbackup"
 ####### Cron job sample to backup everyday at 3am:
-#######     0 3 * * * /home/hosting/backup/sql2cloud
+#######     0 3 * * * /home/hosting/backup/sqlbackup
 ### NOTES:
 ####### This scirpt can backup multiple databases at once but it's not
 ####### recommended if you are on a shared hosting.
