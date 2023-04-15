@@ -1,0 +1,283 @@
+#!/bin/bash
+source "$(dirname $(readlink -f $0))/.env"
+
+VERR="3.0.0"
+CLRX='\033[0m' #color reset
+CLRE='\033[0;31m' #color red
+CLRS='\033[0;32m' #color green
+CLRC='\033[0;33m' #color yellow
+CLRQ='\033[0;34m' #color blue
+CLRI='\033[0;36m' #color cyan
+CLRD='\033[0;90m'
+SYME='[x]'
+SYMC='[!]'
+SYMQ='[?]'
+SYMI='[i]'
+NOW=$(date +"%Y%m%d-%H%M%S")
+re='^[0-9]+$'
+
+apptitle() {
+    echo -e "
+ ####################################################################
+ ###### LeoMoon BashBackup v$VERR ###################################
+ ###### Author: Amin Babaeipanah ####################################
+ ###### More info: https://lms.to/lmbb ##############################
+ ####################################################################
+"
+}
+
+usage() {
+    echo -e "$CLRI $SYMI Usage:$CLRX
+    $0 [-n <backup-name>] [-b <path-1>] [-b <path-2>]
+    [-e <exclude-1>] [-d <dropbox-key>] [-p <password>]
+    [--ftp-host <ftp://domain.com>] [--ftp-user <ftp-user>]
+    [--ftp-pass <ftp-pass>] [-c <1-9>] [-q]
+
+$CLRI $SYMI Parameters:$CLRX
+    -n|--name           File name of the zipped backup.
+                        Timestamp will be appended to the name.
+    -b|--backup         Path to backup.
+    --database-type     Define database type to backup. Default = mysql
+    --database-host     Define database host to backup. Default = localhost
+    --database-name     Define database name to backup.
+    --database-user     Define database user to backup.
+    --database-pass     Define database password to backup.
+    -e|--exclude        Backup exclude. Supports wildcards.
+    -t|--to-path        Backup destination path. Default = /var/backup
+    -k|--to-keep        Number of backups to keep. Default = 7
+    -d|--dropbox-key    Dropbox access token.
+    --ftp-host          FTP IP/URL.
+    --ftp-user          FTP user.
+    --ftp-pass          FTP password.
+    -p|--zip-password   Password to encrypt backup archive.
+    -c|--compression    Compression level 0-9. Default is 5.
+    -q|--quiet          Quiet operation.
+
+$CLRI $SYMI Examples:$CLRX
+    Backup \"\$HOME/folder\", exluding bin files to Dropbox with zip password:
+    $0 -n \"backup-name\" -b \"\$HOME/folder\" -e \"*.bin\" -d \"dropbox-key\" -p password
+
+    Backup mysql database to Dropbox with zip password:
+    $0 -n \"backup-name\" --database-name \"database-name\" --database-user \"database_user\" --database-pass \"database-pass\" -d \"dropbox-key\" -p password
+
+"
+    exit 1;
+}
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        -n|--name)
+            name="$2"
+            shift
+            shift
+        ;;
+        -b|--backup)
+            backup+=("$2")
+            shift
+            shift
+        ;;
+        --database-type)
+            database_type="$2"
+            shift
+            shift
+        ;;
+        --database-host)
+            database_host="$2"
+            shift
+            shift
+        ;;
+        --database-name)
+            database_name="$2"
+            shift
+            shift
+        ;;
+        --database-user)
+            database_user="$2"
+            shift
+            shift
+        ;;
+        --database-pass)
+            database_pass="$2"
+            shift
+            shift
+        ;;
+        -e|--exclude)
+            exclude+=("$2")
+            shift
+            shift
+        ;;
+        -t|--to-path)
+            backup_folder="$2"
+            shift
+            shift
+        ;;
+        -k|--to-keep)
+            keep="$2"
+            shift
+            shift
+        ;;
+        -d|--dropbox-key)
+            dropbox="$2"
+            shift
+            shift
+        ;;
+        --ftp-host)
+            ftp_host="$2"
+            shift
+            shift
+        ;;
+        --ftp-user)
+            ftp_user="$2"
+            shift
+            shift
+        ;;
+        --ftp-pass)
+            ftp_pass="$2"
+            shift
+            shift
+        ;;
+        -p|--zip-password)
+            p="$2"
+            shift
+            shift
+        ;;
+        -c|--compression)
+            c=$2
+            shift
+            shift
+        ;;
+        -q|--quiet)
+            q='-q'
+            qq='-s'
+            shift
+        ;;
+        *)    #unknown option
+        usage
+        ;;
+    esac
+done
+set -- "${POSITIONAL[@]}" #restore positional parameters
+
+#check values
+if [[ -z $name ]]; then
+    apptitle
+    echo -e "$CLRE $SYME Backup name is not defined: -n$CLRX"
+    usage
+fi
+
+if [[ -z $backup ]] && ( [[ -z $database_name ]] || [[ -z $database_user ]] || [[ -z $database_pass ]] ); then
+    apptitle
+    echo -e "$CLRE $SYME Nothing to backup. Define a path or database-{name,user,pass} to backup!$CLRX"
+    usage
+fi
+
+if [[ -z $c ]]; then
+    c=5
+fi
+if [[ ! $c =~ $re ]]; then #check integer parameters
+    apptitle
+    echo -e "$CLRE $SYME Compression parameter must be positive integers: -e$CLRX"
+    usage
+fi
+
+if [[ -z $q ]]; then apptitle; fi
+#filename
+
+#prepare local backup folder
+if [[ -z $backup_folder ]]; then backup_folder="/var/backup"; fi
+if [[ ! -d $backup_folder ]]; then
+    mkdir "$backup_folder" > /dev/null 2>&1
+    res=$?
+    if [[ $res != 0 ]]; then
+        if [[ -z $q ]]; then echo -e "$CLRE $SYME Backup failed while creating backup directory! Exit code: mkdir $res$CLRX"; fi
+        if [[ ! -z $bb_email_alert_from ]] || [[ ! -z $bb_email_alert_to ]]; then echo "Backup $name failed while creating backup directory! Exit code: mkdir $res" | mail -s "Backup $name failed ($res) on ${HOSTNAME^^}" -r $bb_email_alert_from $bb_email_alert_to; fi
+        exit 1
+    fi
+fi
+if [[ -z $q ]]; then echo -e "$CLRI $SYMI Backup folder: $backup_folder$CLRX"; fi
+
+backup_files() {
+    backup_file=$1
+    if [[ -z $q ]]; then echo -e "$CLRI $SYMI Backing up files to $backup_file$CLRX"; fi
+    if [[ -z $p ]]; then
+        zip -r $q -$c "$backup_folder/$backup_file" "${backup[@]}" -x "*/.well-known/*" "*/_gsdata_/*" "${exclude[@]}"
+        res=$?
+    else
+        zip -r $q -$c "$backup_folder/$backup_file" "${backup[@]}" -x "*/.well-known/*" "*/_gsdata_/*" "${exclude[@]}" --password "$p"
+        res=$?
+    fi
+    if [[ $res != 0 ]]; then
+        if [[ -z $q ]]; then echo -e "$CLRE $SYME Backup failed while zipping! Exit code: zip $res$CLRX"; fi
+        if [[ ! -z $bb_email_alert_from ]] || [[ ! -z $bb_email_alert_to ]]; then echo "Backup $name failed while zipping! Exit code: zip $res" | mail -s "Backup $name failed ($res) on ${HOSTNAME^^}" -r $bb_email_alert_from $bb_email_alert_to; fi
+        exit 1
+    fi
+}
+
+backup_database() {
+    backup_file=$1
+    if [[ -z $q ]]; then echo -e "$CLRI $SYMI Backing up $database_name database to $backup_file$CLRX"; fi
+    if [[ -z $database_type ]]; then database_type="mysql"; fi
+    if [[ -z $database_host ]]; then database_host="localhost"; fi
+    if [[ $database_type == 'mysql' ]]; then
+        if [[ -z $p ]]; then
+            mysqldump -h $database_host -u $database_user -p$database_pass $database_name | zip > "$backup_folder/$backup_file" -$c $q
+            res=${PIPESTATUS[0]}
+        else
+            mysqldump -h $database_host -u $database_user -p$database_pass $database_name | zip > "$backup_folder/$backup_file" -$c $q --password "$p"
+            res=${PIPESTATUS[0]}
+        fi
+    fi
+    if [[ $res != 0 ]]; then
+        if [[ -z $q ]]; then echo -e "$CLRE $SYME Database backup failed while zipping! Exit code: mysqldump $res$CLRX"; fi
+        if [[ ! -z $bb_email_alert_from ]] || [[ ! -z $bb_email_alert_to ]]; then echo "Database backup $database_name failed while zipping! Exit code: mysqldump $res" | mail -s "Backup $name failed ($res) on ${HOSTNAME^^}" -r $bb_email_alert_from $bb_email_alert_to; fi
+        rm -f "$backup_folder/$backup_file"
+        exit 1
+    fi
+}
+
+upload_dropbox() {
+    backup_file=$1
+    if [[ -z $q ]]; then echo -e "$CLRI $SYMI Uploading $backup_file to Dropbox...$CLRX"; fi
+    res=$(curl -X POST https://content.dropboxapi.com/2/files/upload \
+    --header "Authorization: Bearer $dropbox" \
+    --header "Dropbox-API-Arg: {\"path\": \"/$backup_file\"}" \
+    --header "Content-Type: application/octet-stream" \
+    --data-binary @"$backup_folder/$backup_file" -s --output /dev/null --write-out %{http_code})
+    if [[ $res != 200 ]]; then
+        if [[ -z $q ]]; then echo -e "$CLRE $SYME Backup failed while uploading to Dropbox! Exit code: curl $res$CLRX"; fi
+        if [[ ! -z $bb_email_alert_from ]] || [[ ! -z $bb_email_alert_to ]]; then echo "Backup $name failed while uploading to Dropbox! Exit code: curl $res" | mail -s "Backup $name failed on ${HOSTNAME^^}" -r $bb_email_alert_from $bb_email_alert_to; fi
+        exit 1
+    fi
+}
+
+upload_ftp() {
+    backup_file=$1
+    if [[ -z $q ]]; then echo -e "$CLRI $SYMI Uploading $backup_file to FTP...$CLRX"; fi
+    res=$(curl -T "$backup_folder/$backup_file" "$ftp_host" --user "$ftp_user":"$ftp_pass" -s --output /dev/null --write-out %{http_code})
+    if [[ $res != 200 ]]; then
+        if [[ -z $q ]]; then echo -e "$CLRE $SYME Backup failed while uploading to FTP! Exit code: curl $res$CLRX"; fi
+        if [[ ! -z $bb_email_alert_from ]] || [[ ! -z $bb_email_alert_to ]]; then echo "Backup $name failed while uploading to FTP! Exit code: curl $res" | mail -s "Backup $name failed on ${HOSTNAME^^}" -r $bb_email_alert_from $bb_email_alert_to; fi
+        exit 1
+    fi
+}
+
+# backup files
+if [[ ! -z $backup ]]; then
+    backup_files "${name}_${NOW}.zip"
+    if [[ ! -z $dropbox ]]; then upload_dropbox "${name}_${NOW}.zip"; fi
+    if [[ ! -z $ftp_host ]] || [[ ! -z $ftp_user ]] || [[ ! -z $ftp_pass ]]; then upload_ftp "${name}_${NOW}.zip"; fi
+    if [[ -z $keep ]]; then keep=7; cd "$backup_folder" && rm -f $(ls -1r ${name}*.zip | awk "NR>$keep"); fi
+fi
+
+# backup mysql
+if [[ ! -z $database_name ]] || [[ ! -z $database_user ]] || [[ ! -z $database_pass ]]; then
+    backup_database "${name}_${NOW}.zip"
+    if [[ ! -z $dropbox ]]; then upload_dropbox "${name}_${NOW}.zip"; fi
+    if [[ ! -z $ftp_host ]] || [[ ! -z $ftp_user ]] || [[ ! -z $ftp_pass ]]; then upload_ftp "${name}_${NOW}.zip"; fi
+    if [[ -z $keep ]]; then keep=7; cd "$backup_folder" && rm -f $(ls -1r ${name}*.zip | awk "NR>$keep"); fi
+fi
+if [[ -z $q ]]; then echo -e "$CLRI $SYMI Backup done.$CLRX"; fi
+
+exit 0
