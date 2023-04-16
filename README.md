@@ -7,7 +7,7 @@ BashBackup is a reliable backup system for Linux. With BashBackup you can automa
 - Automatic upload of all backups to another FTP
 - Automatic upload of all backups to Dropbox using Dropbox access token
 - Password protected zip (optional)
-- Keeping last x number of backups (default is 7)
+- Keeping last x number of backups
 - Custom compression ratio
 
 ## Authors
@@ -17,23 +17,26 @@ BashBackup is a reliable backup system for Linux. With BashBackup you can automa
 - 3.0.0 2023-04-15: Rewrite of bashbackup.
 
 ## Arguments
-- **-n|--name**:File name of the zipped backup. Timestamp will be appended to the name.
-- **-b|--backup**: Path to backup.
-- **--database-type**: Define database type to backup. Default = mysql
-- **--database-host**: Define database host to backup. Default = localhost
-- **--database-name**: Define database name to backup.
-- **--database-user**: Define database user to backup.
-- **--database-pass**: Define database password to backup.
-- **-e|--exclude**: Backup exclude. Supports wildcards.
-- **-t|--to-path**: Backup destination path. Default = /var/backup
-- **-k|--to-keep**: Number of backups to keep. Default = 7
-- **-d|--dropbox-key**: Dropbox access token.
-- **--ftp-host**: FTP IP/URL.
-- **--ftp-user**: FTP user.
-- **--ftp-pass**: FTP password.
-- **-p|--zip-password**: Password to encrypt backup archive.
-- **-c|--compression**: Compression level 0-9. Default is 5.
-- **-q|--quiet**: Quiet operation.
+```
+-n|--name           File name of the zipped backup.
+                    Timestamp will be appended to the name.
+-b|--backup         Path to backup.
+--database-type     Define database type to backup. Default = mysql
+--database-host     Define database host to backup. Default = localhost
+--database-name     Define database name to backup.
+--database-user     Define database user to backup.
+--database-pass     Define database password to backup.
+-e|--exclude        Backup exclude. Supports wildcards.
+-t|--to-path        Backup destination path. Default = /var/backup
+-k|--to-keep        Number of backups to keep. Default = 7
+-d|--dropbox-key    Dropbox access token.
+--ftp-host          FTP IP/URL.
+--ftp-user          FTP user.
+--ftp-pass          FTP password.
+-p|--zip-password   Password to encrypt backup archive.
+-c|--compression    Compression level 0-9. Default is 5.
+-q|--quiet          Quiet operation.
+```
 
 ## Script Setup
 - Download the script to your desired location.
@@ -53,7 +56,7 @@ BashBackup is a reliable backup system for Linux. With BashBackup you can automa
 ## Cron Examples
 In these examples, bashbackup is stored at `/bashbackup/bb` and the env file is stored at `/bashbackup/.env`.
 
-Backup "$HOME/folder", exluding `zip` files and `bin` folder to Dropbox with zip password:
+Backup `"$HOME/folder"`, exluding `zip` files and `bin` folder to Dropbox with zip password:
 ```
 source /bashbackup/.env && /bashbackup/bb -n "backup-name" -b "$HOME/folder" -e "*.zip" -e "*/bin/* -d $bb_dropbox_key -p $bb_zip_password
 ```
