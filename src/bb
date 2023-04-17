@@ -15,6 +15,7 @@ SYMQ='[?]'
 SYMI='[i]'
 NOW=$(date +"%Y%m%d-%H%M%S")
 re='^[0-9]+$'
+default_excludes=("*/.well-known/*" "*/Thumbs.db" "*/.DS_Store" "*/_gsdata_/*")
 
 apptitle() {
     echo -e "
@@ -202,10 +203,10 @@ backup_files() {
     backup_file=$1
     if [[ -z $q ]]; then echo -e "$CLRI $SYMI Backing up files to $backup_file$CLRX"; fi
     if [[ -z $p ]]; then
-        zip -r $q -$c "$backup_folder/$backup_file" "${backup[@]}" -x "*/.well-known/*" "*/.DS_Store" "*/_gsdata_/*" "${exclude[@]}"
+        zip -r $q -$c "$backup_folder/$backup_file" "${backup[@]}" -x "${default_excludes[@]}" "${exclude[@]}"
         res=$?
     else
-        zip -r $q -$c "$backup_folder/$backup_file" "${backup[@]}" -x "*/.well-known/*" "*/.DS_Store" "*/_gsdata_/*" "${exclude[@]}" --password "$p"
+        zip -r $q -$c "$backup_folder/$backup_file" "${backup[@]}" -x "${default_excludes[@]}" "${exclude[@]}" --password "$p"
         res=$?
     fi
     if [[ $res != 0 ]]; then
