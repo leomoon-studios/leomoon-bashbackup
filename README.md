@@ -56,14 +56,14 @@ BashBackup is a reliable backup system for Linux. With BashBackup you can automa
 ## Cron Examples
 In these examples, bashbackup is stored at `/bashbackup/bb` and the env file is stored at `/bashbackup/.env`.
 
-Backup `"$HOME/folder"`, exluding `zip` files and `bin` folder to Dropbox with zip password:
+Backup `"$HOME/folder"`, exluding `zip` files and `bin` folder to Dropbox with zip password (don't miss the dot in the beginning):
 ```
-source /bashbackup/.env && /bashbackup/bb -n "backup-name" -b "$HOME/folder" -e "*.zip" -e "*/bin/* -d $bb_dropbox_key -p $bb_zip_password
+. /bashbackup/.env && /bashbackup/bb -n "backup-name" -b "$HOME/folder" -e "*.zip" -e "*/bin/* -d $bb_dropbox_key -p $bb_zip_password
 ```
 
-Backup mysql database to Dropbox with zip password:
+Backup mysql database to Dropbox with zip password (don't miss the dot in the beginning):
 ```
-source /bashbackup/.env && /bashbackup/bb -n "backup-name" --database-name "wordpress" --database-user "user" --database-pass $bb_db_wordpress -d $bb_dropbox_key -p $bb_zip_password
+. /bashbackup/.env && /bashbackup/bb -n "backup-name" --database-name "wordpress" --database-user "user" --database-pass $bb_db_wordpress -d $bb_dropbox_key -p $bb_zip_password
 ```
 
 ## Compatibility
