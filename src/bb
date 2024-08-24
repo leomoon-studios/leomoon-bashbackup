@@ -1,7 +1,7 @@
 #!/bin/bash
 source "$(dirname $(readlink -f $0))/.env"
 
-VERR="3.0.1"
+VERR="3.0.2"
 CLRX='\033[0m' #color reset
 CLRE='\033[0;31m' #color red
 CLRS='\033[0;32m' #color green
@@ -16,6 +16,16 @@ SYMI='[i]'
 NOW=$(date +"%Y%m%d-%H%M%S")
 re='^[0-9]+$'
 default_excludes=("*/.well-known/*" "*/Thumbs.db" "*/.DS_Store" "*/_gsdata_/*")
+keep=7
+backup=()
+exclude=()
+
+for cmd in zip curl; do
+    if ! command -v $cmd &>/dev/null; then
+        echo -e "$CLRE $SYME $cmd could not be found. Please install it before running the script.$CLRX"
+        exit 1
+    fi
+done
 
 apptitle() {
     echo -e "
@@ -154,6 +164,10 @@ while [[ $# -gt 0 ]]; do
             qq='-s'
             shift
         ;;
+        -h|--help)
+        usage
+        shift
+        ;;
         *)    #unknown option
         usage
         ;;
@@ -162,13 +176,19 @@ done
 set -- "${POSITIONAL[@]}" #restore positional parameters
 
 #check values
+if ! [[ $keep =~ $re ]]; then
+    apptitle
+    echo -e "$CLRE $SYME Number of backups to keep must be a positive integer: -k$CLRX"
+    usage
+fi
+
 if [[ -z $name ]]; then
     apptitle
     echo -e "$CLRE $SYME Backup name is not defined: -n$CLRX"
     usage
 fi
 
-if [[ -z $backup ]] && ( [[ -z $database_name ]] || [[ -z $database_user ]] || [[ -z $database_pass ]] ); then
+if [[ ${#backup[@]} -eq 0 ]] && ( [[ -z $database_name ]] || [[ -z $database_user ]] || [[ -z $database_pass ]] ); then
     apptitle
     echo -e "$CLRE $SYME Nothing to backup. Define a path or database-{name,user,pass} to backup!$CLRX"
     usage
@@ -177,6 +197,7 @@ fi
 if [[ -z $c ]]; then
     c=5
 fi
+
 if [[ ! $c =~ $re ]]; then #check integer parameters
     apptitle
     echo -e "$CLRE $SYME Compression parameter must be positive integers: -e$CLRX"
@@ -265,21 +286,23 @@ upload_ftp() {
 }
 
 # backup files
-if [[ ! -z $backup ]]; then
+if [[ ${#backup[@]} -gt 0 ]]; then
     backup_files "${name}_${NOW}.zip"
-    if [[ ! -z $dropbox ]]; then upload_dropbox "${name}_${NOW}.zip"; fi
-    if [[ ! -z $ftp_host ]] || [[ ! -z $ftp_user ]] || [[ ! -z $ftp_pass ]]; then upload_ftp "${name}_${NOW}.zip"; fi
-    if [[ -z $keep ]]; then keep=7; fi
-    cd "$backup_folder" && rm -f $(ls -1r ${name}*.zip | awk "NR>$keep")
+    [[ -n $dropbox ]] && upload_dropbox "${name}_${NOW}.zip"
+    [[ -n $ftp_host && -n $ftp_user && -n $ftp_pass ]] && upload_ftp "${name}_${NOW}.zip"
+    cd "$backup_folder" && ls -1r "${name}"*.zip | awk "NR>$keep" | xargs -r rm -f
 fi
 
 # backup mysql
-if [[ ! -z $database_name ]] || [[ ! -z $database_user ]] || [[ ! -z $database_pass ]]; then
+if [[ -n $database_name || -n $database_user || -n $database_pass ]]; then
+    if ! command -v mysqldump &>/dev/null; then
+        echo -e "$CLRE $SYME mysqldump could not be found. Please install it before running the script.$CLRX"
+        exit 1
+    fi
     backup_database "${name}_${NOW}.zip"
-    if [[ ! -z $dropbox ]]; then upload_dropbox "${name}_${NOW}.zip"; fi
-    if [[ ! -z $ftp_host ]] || [[ ! -z $ftp_user ]] || [[ ! -z $ftp_pass ]]; then upload_ftp "${name}_${NOW}.zip"; fi
-    if [[ -z $keep ]]; then keep=7; fi
-    cd "$backup_folder" && rm -f $(ls -1r ${name}*.zip | awk "NR>$keep")
+    [[ -n $dropbox ]] && upload_dropbox "${name}_${NOW}.zip"
+    [[ -n $ftp_host && -n $ftp_user && -n $ftp_pass ]] && upload_ftp "${name}_${NOW}.zip"
+    cd "$backup_folder" && ls -1r "${name}"*.zip | awk "NR>$keep" | xargs -r rm -f
 fi
 if [[ -z $q ]]; then echo -e "$CLRI $SYMI Backup done.$CLRX"; fi
 
