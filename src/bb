@@ -27,6 +27,14 @@ for cmd in zip curl; do
     fi
 done
 
+check_rclone() {
+    if [[ -z $rclone_path ]]; then rclone_path="/usr/bin/rclone"; fi
+    if [[ ! -x $rclone_path ]]; then
+        echo -e "$CLRE $SYME rclone could not be found at $rclone_path. Please install it or use --rclone-path.$CLRX"
+        exit 1
+    fi
+}
+
 apptitle() {
     echo -e "
  ####################################################################
@@ -60,6 +68,9 @@ $CLRI $SYMI Parameters:$CLRX
     --ftp-host          FTP IP/URL.
     --ftp-user          FTP user.
     --ftp-pass          FTP password.
+    --rclone-remote     Rclone remote and path. e.g. rclone_drive:/backups
+    --rclone-path       Rclone binary path. Default = /usr/bin/rclone
+    --rclone-config     Rclone config file path. Default = ~/.config/rclone/rclone.conf
     -p|--zip-password   Password to encrypt backup archive.
     -c|--compression    Compression level 0-9. Default is 5.
     -q|--quiet          Quiet operation.
@@ -70,6 +81,9 @@ $CLRI $SYMI Examples:$CLRX
 
     Backup mysql database to Dropbox with zip password:
     $0 -n \"backup-name\" --database-name \"database-name\" --database-user \"database_user\" --database-pass \"database-pass\" -d \"dropbox-key\" -p password
+
+    Backup files to rclone remote:
+    $0 -n \"backup-name\" -b \"\$HOME/folder\" --rclone-remote \"rclone_drive:/backups\" --rclone-config \"~/.config/rclone/rclone.conf\"
 
 "
     exit 1;
@@ -149,6 +163,21 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
         ;;
+        --rclone-remote)
+            rclone_remote="$2"
+            shift
+            shift
+        ;;
+        --rclone-path)
+            rclone_path="$2"
+            shift
+            shift
+        ;;
+        --rclone-config)
+            rclone_config="$2"
+            shift
+            shift
+        ;;
         -p|--zip-password)
             p="$2"
             shift
@@ -174,6 +203,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 set -- "${POSITIONAL[@]}" #restore positional parameters
+
+#expand ~ and $HOME in path arguments
+for _var in backup_folder rclone_config rclone_path; do
+    [[ -n ${!_var} ]] || continue
+    printf -v "$_var" '%s' "${!_var/#\~/$HOME}"
+    printf -v "$_var" '%s' "${!_var//\$HOME/$HOME}"
+done
 
 #check values
 if ! [[ $keep =~ $re ]]; then
@@ -244,10 +280,10 @@ backup_database() {
     if [[ -z $database_host ]]; then database_host="localhost"; fi
     if [[ $database_type == 'mysql' ]]; then
         if [[ -z $p ]]; then
-            mysqldump -h $database_host -u $database_user -p$database_pass $database_name | zip > "$backup_folder/$backup_file" -$c $q
+            mysqldump -h $database_host -u $database_user -p$database_pass $database_name | zip -$c $q > "$backup_folder/$backup_file"
             res=${PIPESTATUS[0]}
         else
-            mysqldump -h $database_host -u $database_user -p$database_pass $database_name | zip > "$backup_folder/$backup_file" -$c $q --password "$p"
+            mysqldump -h $database_host -u $database_user -p$database_pass $database_name | zip -$c $q -P "$p" > "$backup_folder/$backup_file"
             res=${PIPESTATUS[0]}
         fi
     fi
@@ -285,11 +321,30 @@ upload_ftp() {
     fi
 }
 
+upload_rclone() {
+    backup_file=$1
+    if [[ -z $q ]]; then echo -e "$CLRI $SYMI Uploading $backup_file to rclone remote $rclone_remote...$CLRX"; fi
+    rclone_cmd=("$rclone_path" copy "$backup_folder/$backup_file" "$rclone_remote")
+    [[ -n $rclone_config ]] && rclone_cmd+=(--config "$rclone_config")
+    [[ -n $q ]] && rclone_cmd+=(--quiet)
+    "${rclone_cmd[@]}"
+    res=$?
+    if [[ $res != 0 ]]; then
+        if [[ -z $q ]]; then echo -e "$CLRE $SYME Backup failed while uploading to rclone remote! Exit code: rclone $res$CLRX"; fi
+        if [[ ! -z $bb_email_alert_from ]] || [[ ! -z $bb_email_alert_to ]]; then echo "Backup $name failed while uploading to rclone remote! Exit code: rclone $res" | mail -s "Backup $name failed ($res) on ${HOSTNAME^^}" -r $bb_email_alert_from $bb_email_alert_to; fi
+        exit 1
+    fi
+}
+
+# check rclone availability if needed
+[[ -n $rclone_remote ]] && check_rclone
+
 # backup files
 if [[ ${#backup[@]} -gt 0 ]]; then
     backup_files "${name}_${NOW}.zip"
     [[ -n $dropbox ]] && upload_dropbox "${name}_${NOW}.zip"
     [[ -n $ftp_host && -n $ftp_user && -n $ftp_pass ]] && upload_ftp "${name}_${NOW}.zip"
+    [[ -n $rclone_remote ]] && upload_rclone "${name}_${NOW}.zip"
     cd "$backup_folder" && ls -1r "${name}"*.zip | awk "NR>$keep" | xargs -r rm -f
 fi
 
@@ -302,6 +357,7 @@ if [[ -n $database_name || -n $database_user || -n $database_pass ]]; then
     backup_database "${name}_${NOW}.zip"
     [[ -n $dropbox ]] && upload_dropbox "${name}_${NOW}.zip"
     [[ -n $ftp_host && -n $ftp_user && -n $ftp_pass ]] && upload_ftp "${name}_${NOW}.zip"
+    [[ -n $rclone_remote ]] && upload_rclone "${name}_${NOW}.zip"
     cd "$backup_folder" && ls -1r "${name}"*.zip | awk "NR>$keep" | xargs -r rm -f
 fi
 if [[ -z $q ]]; then echo -e "$CLRI $SYMI Backup done.$CLRX"; fi
