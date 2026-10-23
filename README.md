@@ -11,12 +11,14 @@ BashBackup is a reliable backup system for Linux. With BashBackup you can automa
 - Keeping last x number of backups
 - Custom compression ratio
 
-## Authors
-- Amin Babaeipanah
+## Releases
+Pushing any Git tag runs the release workflow. It checks the Bash syntax, packages `bb`, `README.md`, and `LICENSE` into a versioned tarball, publishes it as a GitHub Release, and includes a SHA-256 checksum.
 
-## Changelog
-- 3.1.0 2026-04-03: Added rclone support for uploading backups to any rclone remote.
-- 3.0.0 2023-04-15: Rewrite of bashbackup.
+For example, create and push a release tag with:
+```bash
+git tag v3.1.0
+git push origin v3.1.0
+```
 
 ## Arguments
 ```
