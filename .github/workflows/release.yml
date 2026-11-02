@@ -72,7 +72,7 @@ jobs:
           assets=("dist/${package_name}.tar.gz" "dist/${package_name}.tar.gz.sha256")
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" "${assets[@]}" --clobber
-            gh release edit "$TAG" --title "BashBackup ${TAG}" --notes-file dist/release-notes.md
+            gh release edit "$TAG" --title "${TAG}" --notes-file dist/release-notes.md
           else
-            gh release create "$TAG" "${assets[@]}" --title "BashBackup ${TAG}" --notes-file dist/release-notes.md --verify-tag
+            gh release create "$TAG" "${assets[@]}" --title "${TAG}" --notes-file dist/release-notes.md --verify-tag
           fi
